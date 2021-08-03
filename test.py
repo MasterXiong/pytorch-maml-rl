@@ -45,21 +45,23 @@ def main(args):
                                num_workers=args.num_workers)
 
     logs = {'tasks': []}
-    train_returns, valid_returns = [], []
+    train_returns, valid_returns = [[] for _ in range(args.gradient_steps)], []
     for batch in trange(args.num_batches):
+        print (args.fast_lr)
         tasks = sampler.sample_tasks(num_tasks=args.meta_batch_size)
         train_episodes, valid_episodes = sampler.sample(tasks,
-                                                        num_steps=config['num-steps'],
-                                                        fast_lr=config['fast-lr'],
+                                                        num_steps=args.gradient_steps,
+                                                        fast_lr=args.fast_lr,
                                                         gamma=config['gamma'],
                                                         gae_lambda=config['gae-lambda'],
                                                         device=args.device)
 
         logs['tasks'].extend(tasks)
-        train_returns.append(get_returns(train_episodes[0]))
+        for i in range(args.gradient_steps):
+            train_returns[i].append(get_returns(train_episodes[i]))
         valid_returns.append(get_returns(valid_episodes))
 
-    logs['train_returns'] = np.concatenate(train_returns, axis=0)
+    logs['train_returns'] = [np.concatenate(train_returns[i], axis=0) for i in range(args.gradient_steps)]
     logs['valid_returns'] = np.concatenate(valid_returns, axis=0)
 
     with open(args.output, 'wb') as f:
@@ -85,6 +87,11 @@ if __name__ == '__main__':
         help='number of batches (default: 10)')
     evaluation.add_argument('--meta-batch-size', type=int, default=40,
         help='number of tasks per batch (default: 40)')
+
+    evaluation.add_argument('--gradient_steps', type=int, default=1,
+        help='number of gradient update per task')
+    evaluation.add_argument('--fast_lr', type=float, default=0.1,
+        help='learning rate for inner update')
 
     # Miscellaneous
     misc = parser.add_argument_group('Miscellaneous')

@@ -4,6 +4,7 @@ import json
 import os
 import yaml
 from tqdm import trange
+import numpy as np
 
 import maml_rl.envs
 from maml_rl.metalearners import MAMLTRPO
@@ -59,7 +60,12 @@ def main(args):
                            device=args.device)
 
     num_iterations = 0
-    for batch in trange(config['num-batches']):
+    if args.num_batches is not None:
+        meta_train_batches = args.num_batches
+    else:
+        meta_train_batches = config['num-batches']
+
+    for batch in trange(meta_train_batches):
         tasks = sampler.sample_tasks(num_tasks=config['meta-batch-size'])
         futures = sampler.sample_async(tasks,
                                        num_steps=config['num-steps'],
@@ -81,11 +87,19 @@ def main(args):
                     num_iterations=num_iterations,
                     train_returns=get_returns(train_episodes[0]),
                     valid_returns=get_returns(valid_episodes))
+        print (np.array(get_returns(valid_episodes)).mean())
 
         # Save policy
         if args.output_folder is not None:
+            if batch % 50 == 0:
+                with open(os.path.join(args.output_folder, 'policy_{}.th'.format(batch)), 'wb') as f:
+                    torch.save(policy.state_dict(), f)
             with open(policy_filename, 'wb') as f:
                 torch.save(policy.state_dict(), f)
+
+    if meta_train_batches == 0:
+        with open(policy_filename, 'wb') as f:
+            torch.save(policy.state_dict(), f)
 
 
 if __name__ == '__main__':
@@ -110,6 +124,8 @@ if __name__ == '__main__':
     misc.add_argument('--use-cuda', action='store_true',
         help='use cuda (default: false, use cpu). WARNING: Full upport for cuda '
         'is not guaranteed. Using CPU is encouraged.')
+    misc.add_argument('--num_batches', type=int, default=None,
+        help='the number of batches for meta-training')
 
     args = parser.parse_args()
     args.device = ('cuda' if (torch.cuda.is_available()
