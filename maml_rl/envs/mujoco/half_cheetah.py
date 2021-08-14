@@ -69,6 +69,7 @@ class HalfCheetahVelEnv(HalfCheetahEnv):
         reward = forward_reward - ctrl_cost
         done = False
         infos = dict(reward_forward=forward_reward,
+                     velocity=forward_vel, 
                      reward_ctrl=-ctrl_cost,
                      task=self._task)
         return (observation, reward, done, infos)

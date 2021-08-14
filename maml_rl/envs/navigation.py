@@ -19,14 +19,16 @@ class Navigation2DEnv(gym.Env):
         Meta-Learning for Fast Adaptation of Deep Networks", 2017 
         (https://arxiv.org/abs/1703.03400)
     """
-    def __init__(self, task={}, low=-0.5, high=0.5):
+    def __init__(self, task={}, r_low=0., r_high=1., theta_low=-180, theta_high=180):
         super(Navigation2DEnv, self).__init__()
-        self.low = low
-        self.high = high
+        self.r_low = r_low
+        self.r_high = r_high
+        self.theta_low = theta_low
+        self.theta_high = theta_high
 
         self.observation_space = spaces.Box(low=-np.inf, high=np.inf,
             shape=(2,), dtype=np.float32)
-        self.action_space = spaces.Box(low=-0.1, high=0.1,
+        self.action_space = spaces.Box(low=-1., high=1.,
             shape=(2,), dtype=np.float32)
 
         self._task = task
@@ -39,7 +41,9 @@ class Navigation2DEnv(gym.Env):
         return [seed]
 
     def sample_tasks(self, num_tasks):
-        goals = self.np_random.uniform(self.low, self.high, size=(num_tasks, 2))
+        goal_r = self.np_random.uniform(self.r_low, self.r_high, size=num_tasks)
+        goal_theta = np.deg2rad(self.np_random.uniform(self.theta_low, self.theta_high, size=num_tasks))
+        goals = np.stack([goal_r * np.cos(goal_theta), goal_r * np.sin(goal_theta)], axis=1)
         tasks = [{'goal': goal} for goal in goals]
         return tasks
 
@@ -52,13 +56,18 @@ class Navigation2DEnv(gym.Env):
         return self._state
 
     def step(self, action):
-        action = np.clip(action, -0.1, 0.1)
+        action = np.clip(action, -1., 1.)
         assert self.action_space.contains(action)
-        self._state = self._state + action
+        self._state = self._state + 0.1 * action
 
         x = self._state[0] - self._goal[0]
         y = self._state[1] - self._goal[1]
         reward = -np.sqrt(x ** 2 + y ** 2)
-        done = ((np.abs(x) < 0.01) and (np.abs(y) < 0.01))
+        #done = ((np.abs(x) < 0.01) and (np.abs(y) < 0.01))
+        done = False
+        info = {
+            'task': self._task, 
+            'pos': self._state
+        }
 
-        return self._state, reward, done, {'task': self._task}
+        return self._state, reward, done, info
