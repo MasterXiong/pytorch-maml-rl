@@ -315,7 +315,7 @@ class SamplerWorker(mp.Process):
 
                 new_observations, rewards, _, infos = self.envs.step(actions)
                 batch_ids = infos['batch_ids']
-                yield (observations, actions, rewards, batch_ids)
+                yield (observations, actions, rewards, batch_ids, infos)
                 observations = new_observations
 
     def run(self):

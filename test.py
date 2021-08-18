@@ -4,6 +4,7 @@ import torch
 import json
 import numpy as np
 from tqdm import trange
+import pickle
 
 from maml_rl.baseline import LinearFeatureBaseline
 from maml_rl.samplers import MultiTaskSampler
@@ -46,6 +47,7 @@ def main(args):
 
     logs = {'tasks': []}
     train_returns, valid_returns = [[] for _ in range(args.gradient_steps)], []
+    train_info = {}
     for batch in trange(args.num_batches):
         print (args.fast_lr)
         tasks = sampler.sample_tasks(num_tasks=args.meta_batch_size)
@@ -60,9 +62,15 @@ def main(args):
         for i in range(args.gradient_steps):
             train_returns[i].append(get_returns(train_episodes[i]))
         valid_returns.append(get_returns(valid_episodes))
+        for step in range(0, args.gradient_steps, 50):
+            train_info[step] = [task._info_list[0] for task in train_episodes[step]]
+        #with open('train_episodes.pkl', 'wb') as f:
+        #    pickle.dump(train_episodes, f)
 
     logs['train_returns'] = [np.concatenate(train_returns[i], axis=0) for i in range(args.gradient_steps)]
     logs['valid_returns'] = np.concatenate(valid_returns, axis=0)
+    logs['train_info'] = train_info
+    logs['valid_info'] = valid_episodes[0]._info_list[0]
 
     with open(args.output, 'wb') as f:
         np.savez(f, **logs)

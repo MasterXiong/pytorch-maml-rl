@@ -13,6 +13,7 @@ class BatchEpisodes(object):
         self._observations_list = [[] for _ in range(batch_size)]
         self._actions_list = [[] for _ in range(batch_size)]
         self._rewards_list = [[] for _ in range(batch_size)]
+        self._info_list = [[] for _ in range(batch_size)]
 
         self._observation_shape = None
         self._action_shape = None
@@ -106,7 +107,7 @@ class BatchEpisodes(object):
                              'to compute and store the advantages in `episodes`.')
         return self._advantages
 
-    def append(self, observations, actions, rewards, batch_ids):
+    def append(self, observations, actions, rewards, batch_ids, infos):
         for observation, action, reward, batch_id in zip(
                 observations, actions, rewards, batch_ids):
             if batch_id is None:
@@ -114,6 +115,7 @@ class BatchEpisodes(object):
             self._observations_list[batch_id].append(observation.astype(np.float32))
             self._actions_list[batch_id].append(action.astype(np.float32))
             self._rewards_list[batch_id].append(reward.astype(np.float32))
+            self._info_list[batch_id].append(infos)
 
     @property
     def logs(self):
