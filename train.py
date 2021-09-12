@@ -5,6 +5,7 @@ import os
 import yaml
 from tqdm import trange
 import numpy as np
+import pickle
 
 import maml_rl.envs
 from maml_rl.metalearners import MAMLTRPO
@@ -39,6 +40,10 @@ def main(args):
     policy = get_policy_for_env(env,
                                 hidden_sizes=config['hidden-sizes'],
                                 nonlinearity=config['nonlinearity'])
+    print (policy.state_dict()['mu.bias'])
+    if args.init_model is not None:
+        policy.load_state_dict(torch.load(os.path.join(args.init_model, 'policy.th')))
+    print (policy.state_dict()['mu.bias'])
     policy.share_memory()
 
     # Baseline
@@ -54,6 +59,10 @@ def main(args):
                                seed=args.seed,
                                num_workers=args.num_workers)
 
+    if args.fast_lr is not None:
+        config['fast-lr'] = args.fast_lr
+    print (config['fast-lr'])
+
     metalearner = MAMLTRPO(policy,
                            fast_lr=config['fast-lr'],
                            first_order=config['first-order'],
@@ -65,6 +74,7 @@ def main(args):
     else:
         meta_train_batches = config['num-batches']
 
+    learning_curve = []
     for batch in trange(meta_train_batches):
         tasks = sampler.sample_tasks(num_tasks=config['meta-batch-size'])
         futures = sampler.sample_async(tasks,
@@ -87,11 +97,16 @@ def main(args):
                     num_iterations=num_iterations,
                     train_returns=get_returns(train_episodes[0]),
                     valid_returns=get_returns(valid_episodes))
-        print (np.array(get_returns(valid_episodes)).mean())
+
+        valid_returns = np.array(get_returns(valid_episodes))
+        print (valid_returns.mean(), valid_returns.shape)
+        learning_curve.append([batch, valid_returns.mean(), valid_returns.std()])
+        with open(os.path.join(args.output_folder, 'learning_curve.pkl'), 'wb') as f:
+            pickle.dump([learning_curve], f)
 
         # Save policy
         if args.output_folder is not None:
-            if batch % 50 == 0:
+            if batch % 10 == 0:
                 with open(os.path.join(args.output_folder, 'policy_{}.th'.format(batch)), 'wb') as f:
                     torch.save(policy.state_dict(), f)
             with open(policy_filename, 'wb') as f:
@@ -126,6 +141,10 @@ if __name__ == '__main__':
         'is not guaranteed. Using CPU is encouraged.')
     misc.add_argument('--num_batches', type=int, default=None,
         help='the number of batches for meta-training')
+    misc.add_argument('--init_model', type=str, default=None,
+        help='the model used for initialization')
+    misc.add_argument('--fast_lr', type=float, default=None,
+        help='learning rate for inner update')
 
     args = parser.parse_args()
     args.device = ('cuda' if (torch.cuda.is_available()
