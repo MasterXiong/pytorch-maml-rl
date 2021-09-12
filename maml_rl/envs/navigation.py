@@ -19,12 +19,18 @@ class Navigation2DEnv(gym.Env):
         Meta-Learning for Fast Adaptation of Deep Networks", 2017 
         (https://arxiv.org/abs/1703.03400)
     """
-    def __init__(self, task={}, r_low=0., r_high=1., theta_low=-180, theta_high=180):
+    def __init__(self, task={}, goal_sampler=None):
         super(Navigation2DEnv, self).__init__()
-        self.r_low = r_low
-        self.r_high = r_high
-        self.theta_low = theta_low
-        self.theta_high = theta_high
+        if goal_sampler == 'left':
+            self.bound = {'theta_low': 3. * np.pi / 4., 'theta_high': 5. * np.pi / 4.}
+        elif goal_sampler == 'right':
+            self.bound = {'theta_low': -np.pi / 4., 'theta_high': np.pi / 4.}
+        elif goal_sampler == 'up':
+            self.bound = {'theta_low': np.pi / 4., 'theta_high': 3. * np.pi / 4.}
+        elif goal_sampler == 'bottom':
+            self.bound = {'theta_low': -3. * np.pi / 4, 'theta_high': -np.pi / 4.}
+        else:
+            raise NotImplementedError(goal_sampler)
 
         self.observation_space = spaces.Box(low=-np.inf, high=np.inf,
             shape=(2,), dtype=np.float32)
@@ -41,9 +47,8 @@ class Navigation2DEnv(gym.Env):
         return [seed]
 
     def sample_tasks(self, num_tasks):
-        goal_r = self.np_random.uniform(self.r_low, self.r_high, size=num_tasks)
-        goal_theta = np.deg2rad(self.np_random.uniform(self.theta_low, self.theta_high, size=num_tasks))
-        goals = np.stack([goal_r * np.cos(goal_theta), goal_r * np.sin(goal_theta)], axis=1)
+        goal_theta = self.np_random.uniform(self.bound['theta_low'], self.bound['theta_high'], size=num_tasks)
+        goals = np.stack([np.cos(goal_theta), np.sin(goal_theta)], axis=1)
         tasks = [{'goal': goal} for goal in goals]
         return tasks
 
@@ -71,3 +76,53 @@ class Navigation2DEnv(gym.Env):
         }
 
         return self._state, reward, done, info
+
+
+class SparseNavigation2DEnv(Navigation2DEnv):
+    """ Reward is L2 distance given only within goal radius """
+
+    def __init__(self, task={}, goal_radius=0.2, goal_sampler=None):
+
+        if goal_sampler == 'left':
+            self.bound = {'theta_low': 3. * np.pi / 4., 'theta_high': 5. * np.pi / 4.}
+        elif goal_sampler == 'right':
+            self.bound = {'theta_low': -np.pi / 4., 'theta_high': np.pi / 4.}
+        elif goal_sampler == 'up':
+            self.bound = {'theta_low': np.pi / 4., 'theta_high': 3. * np.pi / 4.}
+        elif goal_sampler == 'bottom':
+            self.bound = {'theta_low': -3. * np.pi / 4, 'theta_high': -np.pi / 4.}
+        else:
+            raise NotImplementedError(goal_sampler)
+
+        self.observation_space = spaces.Box(low=-np.inf, high=np.inf,
+            shape=(2,), dtype=np.float32)
+        self.action_space = spaces.Box(low=-1., high=1.,
+            shape=(2,), dtype=np.float32)
+
+        self._task = task
+        self.goal_radius = goal_radius
+        self._goal = task.get('goal', np.zeros(2, dtype=np.float32))
+        self._state = np.zeros(2, dtype=np.float32)
+        self.seed()
+
+    def sparsify_rewards(self, r):
+        ''' zero out rewards when outside the goal radius '''
+        mask = (r >= -self.goal_radius).astype(np.float32)
+        r = r * mask
+        return r
+
+    def sample_tasks(self, num_tasks):
+        goal_theta = self.np_random.uniform(self.bound['theta_low'], self.bound['theta_high'], size=num_tasks)
+        goals = np.stack([np.cos(goal_theta), np.sin(goal_theta)], axis=1)
+        tasks = [{'goal': goal} for goal in goals]
+        return tasks
+
+    def step(self, action):
+        ob, reward, done, d = super().step(action)
+        sparse_reward = self.sparsify_rewards(reward)
+        # make sparse rewards positive
+        if reward >= -self.goal_radius:
+            sparse_reward += 1
+        d.update({'sparse_reward': sparse_reward})
+        d.update({'dense_reward': reward})
+        return ob, sparse_reward, done, d

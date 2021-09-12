@@ -61,3 +61,9 @@ register(
     entry_point='maml_rl.envs.navigation:Navigation2DEnv',
     max_episode_steps=100
 )
+
+register(
+    '2DSparseNavigation-v0',
+    entry_point='maml_rl.envs.navigation:SparseNavigation2DEnv',
+    max_episode_steps=100
+)
