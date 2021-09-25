@@ -6,7 +6,7 @@ env-name: "AntDir-v2"
 # Additional parameters for the environment (eg. bound for task sampling).
 env-kwargs:
   normalization_scale: 10.0
-  max_episode_steps: 100
+  max_episode_steps: 200
 
 # Discount factor gamma.
 gamma: 0.99
@@ -28,7 +28,7 @@ nonlinearity: "tanh"
 # Task-specific
 # -------------
 # Number of trajectories to sample for each task.
-fast-batch-size: 20
+fast-batch-size: 10
 
 # Number of gradient steps in the inner loop / fast adaptation.
 num-steps: 1
@@ -42,7 +42,7 @@ fast-lr: 0.1
 num-batches: 500
 
 # Number of tasks in each batch of tasks.
-meta-batch-size: 40
+meta-batch-size: 10
 
 # TRPO-specific
 # -------------

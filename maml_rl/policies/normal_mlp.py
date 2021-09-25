@@ -39,7 +39,7 @@ class NormalMLPPolicy(Policy):
 
         self.apply(weight_init)
 
-    def forward(self, input, params=None):
+    def forward(self, input, params=None, task=None):
         if params is None:
             params = OrderedDict(self.named_parameters())
 
@@ -54,5 +54,9 @@ class NormalMLPPolicy(Policy):
                       weight=params['mu.weight'],
                       bias=params['mu.bias'])
         scale = torch.exp(torch.clamp(params['sigma'], min=self.min_log_std))
+
+        if task == 'cheetah-dir-uni':
+          mu = mu[..., :6]
+          scale = scale[..., :6]
 
         return Independent(Normal(loc=mu, scale=scale), 1)

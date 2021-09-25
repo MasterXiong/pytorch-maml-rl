@@ -19,6 +19,10 @@ def main(args):
     with open(args.config, 'r') as f:
         config = yaml.load(f, Loader=yaml.FullLoader)
 
+    if args.fast_lr is not None:
+        config['fast-lr'] = args.fast_lr
+    print (config['fast-lr'])
+
     if args.output_folder is not None:
         if not os.path.exists(args.output_folder):
             os.makedirs(args.output_folder)
@@ -59,14 +63,11 @@ def main(args):
                                seed=args.seed,
                                num_workers=args.num_workers)
 
-    if args.fast_lr is not None:
-        config['fast-lr'] = args.fast_lr
-    print (config['fast-lr'])
-
     metalearner = MAMLTRPO(policy,
                            fast_lr=config['fast-lr'],
                            first_order=config['first-order'],
-                           device=args.device)
+                           device=args.device, 
+                           task=args.task)
 
     num_iterations = 0
     if args.num_batches is not None:
@@ -145,6 +146,8 @@ if __name__ == '__main__':
         help='the model used for initialization')
     misc.add_argument('--fast_lr', type=float, default=None,
         help='learning rate for inner update')
+    misc.add_argument('--task', type=str, default=None,
+        help='the task name (only useful for cheetah-dir-uni)')
 
     args = parser.parse_args()
     args.device = ('cuda' if (torch.cuda.is_available()

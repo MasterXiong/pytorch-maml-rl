@@ -51,6 +51,9 @@ def main(args):
     for batch in trange(args.num_batches):
         print (args.fast_lr)
         tasks = sampler.sample_tasks(num_tasks=args.meta_batch_size)
+        if args.meta_batch_size == 2:
+            tasks = [{'direction': 1}, {'direction': -1}]
+        print (tasks)
         train_episodes, valid_episodes = sampler.sample(tasks,
                                                         num_steps=args.gradient_steps,
                                                         fast_lr=args.fast_lr,
@@ -69,8 +72,8 @@ def main(args):
 
     logs['train_returns'] = [np.concatenate(train_returns[i], axis=0) for i in range(args.gradient_steps)]
     logs['valid_returns'] = np.concatenate(valid_returns, axis=0)
-    logs['train_info'] = train_info
-    logs['valid_info'] = valid_episodes[0]._info_list[0]
+    #logs['train_info'] = train_info
+    #logs['valid_info'] = valid_episodes[0]._info_list[0]
 
     with open(args.output, 'wb') as f:
         np.savez(f, **logs)

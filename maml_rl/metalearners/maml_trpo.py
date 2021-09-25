@@ -51,10 +51,12 @@ class MAMLTRPO(GradientBasedMetaLearner):
                  policy,
                  fast_lr=0.5,
                  first_order=False,
-                 device='cpu'):
+                 device='cpu', 
+                 task=None):
         super(MAMLTRPO, self).__init__(policy, device=device)
         self.fast_lr = fast_lr
         self.first_order = first_order
+        self.task = task
 
     async def adapt(self, train_futures, first_order=None):
         if first_order is None:
@@ -64,7 +66,8 @@ class MAMLTRPO(GradientBasedMetaLearner):
         for futures in train_futures:
             inner_loss = reinforce_loss(self.policy,
                                         await futures,
-                                        params=params)
+                                        params=params, 
+                                        task=self.task)
             params = self.policy.update_params(inner_loss,
                                                params=params,
                                                step_size=self.fast_lr,
@@ -94,13 +97,17 @@ class MAMLTRPO(GradientBasedMetaLearner):
 
         with torch.set_grad_enabled(old_pi is None):
             valid_episodes = await valid_futures
-            pi = self.policy(valid_episodes.observations, params=params)
+            pi = self.policy(valid_episodes.observations, params=params, task=self.task)
 
             if old_pi is None:
                 old_pi = detach_distribution(pi)
 
-            log_ratio = (pi.log_prob(valid_episodes.actions)
-                         - old_pi.log_prob(valid_episodes.actions))
+            actions = valid_episodes.actions
+            if self.task == 'cheetah-dir-uni':
+                actions = actions[..., :6]
+
+            log_ratio = (pi.log_prob(actions)
+                         - old_pi.log_prob(actions))
             ratio = torch.exp(log_ratio)
 
             losses = -weighted_mean(ratio * valid_episodes.advantages,

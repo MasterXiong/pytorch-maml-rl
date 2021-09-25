@@ -1,6 +1,7 @@
 import numpy as np
 
 from gym.envs.mujoco import HalfCheetahEnv as HalfCheetahEnv_
+from gym import spaces
 
 
 class HalfCheetahEnv(HalfCheetahEnv_):
@@ -132,3 +133,36 @@ class HalfCheetahDirEnv(HalfCheetahEnv):
     def reset_task(self, task):
         self._task = task
         self._goal_dir = task['direction']
+
+
+_ANT_DIR_ACTION_DIM = 8
+_ANT_DIR_OBS_DIM = 125
+
+_CHEETAH_DIR_ACTION_DIM = 6
+_CHEETAH_DIR_OBS_DIM = 20
+
+
+class CheetahDirUniEnv(HalfCheetahDirEnv):
+    """Has the same action and state dim as AntDir."""
+    def __init__(self, task={}):
+        self.orig_action_dim = _CHEETAH_DIR_ACTION_DIM
+        self.obs_dim_added = _ANT_DIR_OBS_DIM - _CHEETAH_DIR_OBS_DIM
+        # initialise original cheetah env
+        super().__init__(task)
+        # overriding action space
+        self.action_space = spaces.Box(low=np.concatenate((self.action_space.low,
+                                                           -np.ones(_ANT_DIR_ACTION_DIM-self.orig_action_dim))),
+                                       high=np.concatenate((self.action_space.high,
+                                                            np.ones(_ANT_DIR_ACTION_DIM-self.orig_action_dim))))
+        # Note: the observation space is automatically generated from the _get_obs function, so we don't overwrite it
+
+    def _get_obs(self):
+        obs = super()._get_obs()
+        # add zeros to match observation space we defined above
+        obs = np.concatenate((obs, np.zeros(self.obs_dim_added))).astype(np.float32)
+        return obs
+
+    def step(self, action):
+        # remove unused zeros
+        action = action[:self.orig_action_dim]
+        return super().step(action)

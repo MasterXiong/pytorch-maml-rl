@@ -53,6 +53,12 @@ register(
     kwargs={'entry_point': 'maml_rl.envs.mujoco.half_cheetah:HalfCheetahDirEnv'}
 )
 
+register(
+    'CheetahDirUni-v0',
+    entry_point='maml_rl.envs.utils.wrappers:mujoco_wrapper',
+    kwargs={'entry_point': 'maml_rl.envs.mujoco.half_cheetah:CheetahDirUniEnv'}
+)
+
 # 2D Navigation
 # ----------------------------------------
 
