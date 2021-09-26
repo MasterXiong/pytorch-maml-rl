@@ -145,8 +145,9 @@ class BatchEpisodes(object):
                                                   lengths=self.lengths)
         # Once the advantages are computed, the returns are not necessary
         # anymore (only to compute the parameters of the baseline)
-        del self._returns
-        del self._mask
+        #del self._returns
+        self._returns = None
+        self._mask = None
 
         return self.advantages
 
