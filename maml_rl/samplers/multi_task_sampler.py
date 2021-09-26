@@ -266,7 +266,7 @@ class SamplerWorker(mp.Process):
             # cause the policy pi = policy(observations) to be miscomputed for
             # some timesteps, which in turns makes the loss explode.
             #self.train_queue.put((index, step, deepcopy(train_episodes)))
-            self.train_queue.put((index, step, train_episodes.returns[0]))
+            self.train_queue.put((index, step, train_episodes.returns[0].cpu().numpy()))
 
             with self.policy_lock:
                 loss = reinforce_loss(self.policy, train_episodes, params=params)
