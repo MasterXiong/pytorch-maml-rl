@@ -72,7 +72,8 @@ class MultiTaskSampler(Sampler):
                  baseline,
                  env=None,
                  seed=None,
-                 num_workers=1):
+                 num_workers=1, 
+                 task=None):
         super(MultiTaskSampler, self).__init__(env_name,
                                                env_kwargs,
                                                batch_size,
@@ -99,7 +100,8 @@ class MultiTaskSampler(Sampler):
                                       self.task_queue,
                                       self.train_episodes_queue,
                                       self.valid_episodes_queue,
-                                      policy_lock)
+                                      policy_lock, 
+                                      task=None)
             for index in range(num_workers)]
 
         for worker in self.workers:
@@ -223,7 +225,8 @@ class SamplerWorker(mp.Process):
                  task_queue,
                  train_queue,
                  valid_queue,
-                 policy_lock):
+                 policy_lock, 
+                 task=None):
         super(SamplerWorker, self).__init__()
 
         env_fns = [make_env(env_name, env_kwargs=env_kwargs)
@@ -240,6 +243,8 @@ class SamplerWorker(mp.Process):
         self.train_queue = train_queue
         self.valid_queue = valid_queue
         self.policy_lock = policy_lock
+
+        self.task = task
 
     def sample(self,
                index,
@@ -269,7 +274,7 @@ class SamplerWorker(mp.Process):
             self.train_queue.put((index, step, train_episodes.returns[0].cpu().numpy()))
 
             with self.policy_lock:
-                loss = reinforce_loss(self.policy, train_episodes, params=params)
+                loss = reinforce_loss(self.policy, train_episodes, params=params, task=self.task)
                 params = self.policy.update_params(loss,
                                                    params=params,
                                                    step_size=fast_lr,

@@ -43,7 +43,8 @@ def main(args):
                                baseline=baseline,
                                env=env,
                                seed=args.seed,
-                               num_workers=args.num_workers)
+                               num_workers=args.num_workers, 
+                               task=args.task)
 
     logs = {'tasks': []}
     train_returns, valid_returns = [[] for _ in range(args.gradient_steps)], []
@@ -118,6 +119,8 @@ if __name__ == '__main__':
     misc.add_argument('--use-cuda', action='store_true',
         help='use cuda (default: false, use cpu). WARNING: Full upport for cuda '
         'is not guaranteed. Using CPU is encouraged.')
+    misc.add_argument('--task', type=str, default=None,
+        help='the task name (only useful for cheetah-dir-uni)')
 
     args = parser.parse_args()
     args.device = ('cuda' if (torch.cuda.is_available()
