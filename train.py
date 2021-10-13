@@ -23,6 +23,9 @@ def main(args):
         config['fast-lr'] = args.fast_lr
     print (config['fast-lr'])
 
+    if args.num_batches is not None:
+        config['num-batches'] = args.num_batches
+
     if args.output_folder is not None:
         if not os.path.exists(args.output_folder):
             os.makedirs(args.output_folder)
@@ -70,13 +73,8 @@ def main(args):
                            task=args.task)
 
     num_iterations = 0
-    if args.num_batches is not None:
-        meta_train_batches = args.num_batches
-    else:
-        meta_train_batches = config['num-batches']
-
     learning_curve = []
-    for batch in trange(meta_train_batches):
+    for batch in trange(config['num-batches']):
         tasks = sampler.sample_tasks(num_tasks=config['meta-batch-size'])
         futures = sampler.sample_async(tasks,
                                        num_steps=config['num-steps'],
@@ -113,7 +111,8 @@ def main(args):
             with open(policy_filename, 'wb') as f:
                 torch.save(policy.state_dict(), f)
 
-    if meta_train_batches == 0:
+    # save the randomly initialized network
+    if config['num-batches'] == 0:
         with open(policy_filename, 'wb') as f:
             torch.save(policy.state_dict(), f)
 
