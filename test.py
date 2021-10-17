@@ -44,7 +44,8 @@ def main(args):
                                env=env,
                                seed=args.seed,
                                num_workers=args.num_workers, 
-                               task=args.task)
+                               task=args.task, 
+                               mode='test')
 
     logs = {'tasks': []}
     train_returns, valid_returns = [[] for _ in range(args.gradient_steps)], []

@@ -73,7 +73,8 @@ class MultiTaskSampler(Sampler):
                  env=None,
                  seed=None,
                  num_workers=1, 
-                 task=None):
+                 task=None, 
+                 mode='train'):
         super(MultiTaskSampler, self).__init__(env_name,
                                                env_kwargs,
                                                batch_size,
@@ -101,7 +102,8 @@ class MultiTaskSampler(Sampler):
                                       self.train_episodes_queue,
                                       self.valid_episodes_queue,
                                       policy_lock, 
-                                      task=task)
+                                      task=task, 
+                                      mode=mode)
             for index in range(num_workers)]
 
         for worker in self.workers:
@@ -226,7 +228,8 @@ class SamplerWorker(mp.Process):
                  train_queue,
                  valid_queue,
                  policy_lock, 
-                 task=None):
+                 task=None, 
+                 mode='train'):
         super(SamplerWorker, self).__init__()
 
         env_fns = [make_env(env_name, env_kwargs=env_kwargs)
@@ -245,6 +248,7 @@ class SamplerWorker(mp.Process):
         self.policy_lock = policy_lock
 
         self.task = task
+        self.mode = mode
 
     def sample(self,
                index,
@@ -270,8 +274,11 @@ class SamplerWorker(mp.Process):
             # respective queues, to avoid a race condition. This issue would 
             # cause the policy pi = policy(observations) to be miscomputed for
             # some timesteps, which in turns makes the loss explode.
-            self.train_queue.put((index, step, deepcopy(train_episodes)))
-            #self.train_queue.put((index, step, train_episodes.returns[0].cpu().numpy()))
+            if self.mode == 'train':
+                self.train_queue.put((index, step, deepcopy(train_episodes)))
+            elif self.mode == 'test':
+                # a trick to avoid out-of-memory issue when adapting for a large number of steps
+                self.train_queue.put((index, step, train_episodes.returns[0].cpu().numpy()))
 
             with self.policy_lock:
                 loss = reinforce_loss(self.policy, train_episodes, params=params, task=self.task)
